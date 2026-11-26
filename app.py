@@ -4,7 +4,7 @@ from datetime import date, datetime
 from flask import Flask, abort, flash, redirect, render_template, request, url_for
 
 app = Flask(__name__)
-app.secret_key = "troque-esta-chave-depois"
+app.secret_key = "e1e2e5506c26ba16341053d136334801fbc6ba1afe8d4add63c1c3a76c513870"
 
 DB = "gastos.db"
 CATEGORIAS = [
