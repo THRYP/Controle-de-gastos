@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<h1>{{ titulo }}</h1>
+
+{% for e in erros %}
+  <p class="erro">{{ e }}</p>
+{% endfor %}
+
+<form method="post" class="formulario">
+  <label>Tipo
+    <select name="tipo">
+      <option value="saida" {{ 'selected' if dados.tipo == 'saida' }}>Saída</option>
+      <option value="entrada" {{ 'selected' if dados.tipo == 'entrada' }}>Entrada</option>
+    </select>
+  </label>
+
+  <label>Valor (R$)
+    <input type="text" name="valor" inputmode="decimal" value="{{ dados.valor }}" placeholder="0,00">
+  </label>
+
+  <label>Categoria
+    <input type="text" name="categoria" list="categorias" value="{{ dados.categoria }}">
+    <datalist id="categorias">
+      {% for c in categorias %}<option value="{{ c }}">{% endfor %}
+    </datalist>
+  </label>
+
+  <label>Data
+    <input type="date" name="data" value="{{ dados.data }}">
+  </label>
+
+  <label>Descrição (opcional)
+    <input type="text" name="descricao" value="{{ dados.descricao or '' }}">
+  </label>
+
+  <div class="botoes">
+    <button type="submit" class="botao">Salvar</button>
+    <a href="{{ url_for('index') }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}
