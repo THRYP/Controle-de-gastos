@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block titulo %}Entrar — Controle de Gastos{% endblock %}
+{% block body_class %}pagina-auth{% endblock %}
+{% block main_class %}main-auth{% endblock %}
+
+{% block conteudo %}
+<section class="auth-palco">
+  <div class="auth-grade">
+    <div class="auth-apresentacao">
+      <span class="auth-selo">Planejamento financeiro pessoal</span>
+      <h1>Organize seus gastos, cartões e metas em um só lugar.</h1>
+      <p class="auth-subtitulo">
+        Conecte-se com sua conta Google para abrir seu painel individual,
+        registrar novos lançamentos e acompanhar sua evolução com total privacidade.
+      </p>
+
+      <div class="auth-destaques">
+        <div class="auth-destaque-item">
+          <span class="auth-destaque-icone" aria-hidden="true">📊</span>
+          <div>
+            <strong>Visão mensal clara</strong>
+            <span>Entradas, saídas, saldo e previsão do próximo mês.</span>
+          </div>
+        </div>
+        <div class="auth-destaque-item">
+          <span class="auth-destaque-icone" aria-hidden="true">💳</span>
+          <div>
+            <strong>Controle de faturas e parcelas</strong>
+            <span>Acompanhe compras parceladas por banco e mês.</span>
+          </div>
+        </div>
+        <div class="auth-destaque-item">
+          <span class="auth-destaque-icone" aria-hidden="true">🎯</span>
+          <div>
+            <strong>Metas e espaço privado</strong>
+            <span>Suas tabelas são visíveis somente após o login.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-card">
+      <div class="auth-cabecalho">
+        <div class="auth-icone-cadeado" aria-hidden="true">✨</div>
+        <h2>Entrar na sua conta</h2>
+        <p>Acesse suas tabelas individuais usando seu Gmail com segurança.</p>
+      </div>
+
+      <a href="{{ url_for('auth_google') }}" class="btn-google">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="#4285F4" d="M23.52 12.27c0-.79-.07-1.54-.2-2.27H12v4.51h6.47c-.29 1.52-1.14 2.8-2.4 3.66v3.03h3.88c2.27-2.09 3.57-5.17 3.57-8.93z"/>
+          <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.94-2.9l-3.88-3.03c-1.07.72-2.45 1.15-4.06 1.15-3.12 0-5.77-2.11-6.72-4.96H1.28v3.11C3.25 21.3 7.31 24 12 24z"/>
+          <path fill="#FBBC05" d="M5.28 14.26A7.2 7.2 0 0 1 4.9 12c0-.79.14-1.56.38-2.26V6.63H1.28A11.98 11.98 0 0 0 0 12c0 1.94.46 3.77 1.28 5.37l4-3.11z"/>
+          <path fill="#EA4335" d="M12 4.78c1.76 0 3.34.61 4.59 1.8l3.44-3.44C17.94 1.19 15.23 0 12 0 7.31 0 3.25 2.7 1.28 6.63l4 3.11c.95-2.85 3.6-4.96 6.72-4.96z"/>
+        </svg>
+        Entrar com Google (Gmail)
+      </a>
+
+      <div class="auth-divisor"><span>Área administrativa separada</span></div>
+
+      <a href="{{ url_for('admin_login') }}" class="btn-admin-acesso">
+        <span aria-hidden="true">🛡️</span>
+        Entrar como Administrador
+      </a>
+
+      <p class="auth-rodape">
+        Nenhum dado financeiro é exibido antes da autenticação. Cada usuário possui seu próprio ambiente isolado.
+      </p>
+    </div>
+  </div>
+</section>
+{% endblock %}

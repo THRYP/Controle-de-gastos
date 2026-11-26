@@ -15,14 +15,13 @@
   </label>
 
   <label>Valor (R$)
-    <input type="text" name="valor" inputmode="decimal" value="{{ dados.valor }}" placeholder="0,00">
+    <input type="text" name="valor" inputmode="decimal"
+           value="{{ '%.2f'|format(dados.valor)|replace('.', ',') if dados.valor is number else dados.valor }}"
+           placeholder="0,00">
   </label>
 
-  <label>Categoria
-    <input type="text" name="categoria" list="categorias" value="{{ dados.categoria }}">
-    <datalist id="categorias">
-      {% for c in categorias %}<option value="{{ c }}">{% endfor %}
-    </datalist>
+  <label>Categoria / Etiqueta livre (opcional — escreva o que quiser)
+    <input type="text" name="categoria" value="{{ dados.categoria }}" placeholder="Ex.: Salário, Mercado, Freelance, Casa...">
   </label>
 
   <label>Data
@@ -35,7 +34,7 @@
 
   <div class="botoes">
     <button type="submit" class="botao">Salvar</button>
-    <a href="{{ url_for('index') }}">Cancelar</a>
+    <a href="{{ url_for('lancamentos') }}">Cancelar</a>
   </div>
 </form>
 {% endblock %}

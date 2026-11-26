@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<h1>{{ titulo }}</h1>
+
+{% for e in erros %}
+  <p class="erro">{{ e }}</p>
+{% endfor %}
+
+<form method="post" class="formulario">
+  <label>Nome da meta
+    <input type="text" name="nome" value="{{ dados.nome }}">
+  </label>
+
+  <div class="formulario-grade">
+    <label>Valor da meta (R$)
+      <input type="text" name="valor_alvo" inputmode="decimal"
+             value="{{ '%.2f'|format(dados.valor_alvo)|replace('.', ',') if dados.valor_alvo is number else dados.valor_alvo }}">
+    </label>
+
+    <label>Valor já guardado (R$)
+      <input type="text" name="valor_atual" inputmode="decimal"
+             value="{{ '%.2f'|format(dados.valor_atual)|replace('.', ',') if dados.valor_atual is number else dados.valor_atual }}">
+    </label>
+  </div>
+
+  <label>Prazo
+    <input type="date" name="prazo" value="{{ dados.prazo }}">
+  </label>
+
+  <div class="botoes">
+    <button type="submit" class="botao">Salvar</button>
+    <a href="{{ url_for('planejamento') }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

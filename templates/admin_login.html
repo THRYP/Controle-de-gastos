@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block titulo %}Login do Administrador — Controle de Gastos{% endblock %}
+{% block body_class %}pagina-auth{% endblock %}
+{% block main_class %}main-auth{% endblock %}
+
+{% block conteudo %}
+<section class="auth-palco auth-palco-centro">
+  <div class="auth-card auth-card-admin">
+    <div class="auth-cabecalho">
+      <div class="auth-icone-cadeado" aria-hidden="true">🛡️</div>
+      <h2>Acesso do Administrador</h2>
+      <p>Entre com suas credenciais administrativas para gerenciar os usuários do sistema.</p>
+    </div>
+
+    {% for e in erros %}
+      <p class="erro">{{ e }}</p>
+    {% endfor %}
+
+    <form method="post" action="{{ url_for('admin_login') }}" class="formulario auth-form">
+      <label>E-mail do Administrador
+        <input type="email" name="email" value="{{ email_preenchido }}" placeholder="admin@controledegastos.local" required autocomplete="username">
+      </label>
+      <label>Senha
+        <input type="password" name="senha" placeholder="Digite sua senha" required autocomplete="current-password">
+      </label>
+      <button type="submit" class="botao">Entrar no Painel Admin</button>
+    </form>
+
+    <div class="auth-divisor"><span>Acesso de usuário</span></div>
+
+    <a href="{{ url_for('login') }}" class="btn-voltar-usuario">
+      ← Voltar para login com Google (Gmail)
+    </a>
+  </div>
+</section>
+{% endblock %}

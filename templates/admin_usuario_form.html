@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }} — Painel Admin{% endblock %}
+
+{% block conteudo %}
+<h1>{{ titulo }}</h1>
+
+{% for e in erros %}
+  <p class="erro">{{ e }}</p>
+{% endfor %}
+
+<form method="post" class="formulario">
+  <div class="formulario-grade">
+    <label>Nome completo
+      <input type="text" name="nome" value="{{ dados.nome }}" placeholder="Ex.: Maria Silva" required>
+    </label>
+
+    <label>E-mail (Gmail para login Google ou e-mail local)
+      <input type="email" name="email" value="{{ dados.email }}" placeholder="usuario@gmail.com" required>
+    </label>
+  </div>
+
+  <div class="formulario-grade">
+    <label>Perfil de acesso
+      <select name="role">
+        <option value="user" {{ 'selected' if dados.role == 'user' }}>Usuário (somente sua tabela individual)</option>
+        <option value="admin" {{ 'selected' if dados.role == 'admin' }}>Administrador (gerencia usuários)</option>
+      </select>
+    </label>
+
+    <label>Status da conta
+      <select name="ativo">
+        <option value="1" {{ 'selected' if dados.ativo }}>Ativo</option>
+        <option value="0" {{ 'selected' if not dados.ativo }}>Bloqueado</option>
+      </select>
+    </label>
+  </div>
+
+  <label>
+    {{ 'Nova senha (opcional — deixe em branco para manter a atual)' if editando else 'Senha local (opcional — deixe em branco para login apenas via Google/Gmail)' }}
+    <input type="password" name="senha" placeholder="{{ 'Deixe em branco para não alterar' if editando else 'Opcional para login com e-mail/senha' }}" autocomplete="new-password">
+  </label>
+
+  <div class="botoes">
+    <button type="submit" class="botao">Salvar</button>
+    <a href="{{ url_for('admin_painel') }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

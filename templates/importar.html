@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="topo-pagina">
+  <h1>Leitor de Extrato Bancário</h1>
+  <a href="{{ url_for('lancamentos') }}" class="botao botao-secundario">Ver lançamentos</a>
+</div>
+
+{% for e in erros %}
+  <p class="erro">{{ e }}</p>
+{% endfor %}
+
+<div class="grade-dupla">
+  <section class="painel">
+    <h2>Anexar extrato e lançar automaticamente</h2>
+    <p class="dica-zoom" style="margin-top: 0; margin-bottom: 14px;">
+      Aceita arquivos <strong>.OFX / .QFX</strong>, <strong>.CSV</strong>, <strong>.TXT</strong> e <strong>.PDF</strong> exportados pelo seu banco.
+    </p>
+
+    <form method="post" enctype="multipart/form-data" class="formulario" style="border: 0; padding: 0; box-shadow: none;">
+
+      <!-- Dropzone com feedback visual aprimorado -->
+      <label class="dropzone" id="dropzone">
+        <input type="file" name="arquivo" id="arquivo-extrato" accept=".ofx,.qfx,.csv,.txt,.pdf">
+        <div class="dropzone-icone" id="dropzone-icone">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <strong id="nome-arquivo" class="dropzone-titulo">Clique ou arraste o arquivo do extrato aqui</strong>
+        <span id="dropzone-sub" class="dropzone-sub">Nubank, Itaú, Bradesco, BB, Santander, Inter, Caixa, C6, Mercado Pago e outros</span>
+        <span id="dropzone-tamanho" class="dropzone-tamanho" style="display:none;"></span>
+      </label>
+
+      <div class="formulario-grade">
+        <label>Banco (detectado automaticamente ou escolha)
+          <select name="banco" id="select-banco">
+            <option value="">— Detectar automaticamente —</option>
+            {% for banco in bancos_brasileiros %}
+              <option value="{{ banco }}"
+                {{ 'selected' if banco_detectado == banco }}>{{ banco }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>Onde lançar
+          <select name="destino">
+            <option value="lancamentos">Lançamentos (Entradas e Saídas da conta)</option>
+            <option value="cartao">Cartão de Crédito (Compras / Parcelas)</option>
+          </select>
+        </label>
+
+        <label>Categoria padrão (opcional — vazio classifica automaticamente)
+          <input type="text" name="categoria_padrao" placeholder="Deixe vazio para auto-classificar (Alimentação, Compras, Viagem...)">
+        </label>
+      </div>
+
+      <label class="check-linha">
+        <input type="checkbox" name="ignorar_duplicados" value="1" checked>
+        Ignorar lançamentos duplicados já importados anteriormente
+      </label>
+
+      <div class="botoes">
+        <button type="submit" class="botao" id="btn-importar" disabled>
+          <span id="btn-importar-texto">Selecione um arquivo primeiro</span>
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="painel">
+    <h2>Importações recentes</h2>
+    {% if historico %}
+      <div class="tabela-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Arquivo</th>
+              <th>Banco</th>
+              <th>Destino</th>
+              <th>Itens</th>
+              <th>Data</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in historico %}
+            <tr>
+              <td><strong>{{ h.arquivo }}</strong></td>
+              <td>
+                {% if h.banco %}
+                  <span class="badge badge-categoria">{{ h.banco }}</span>
+                {% else %}
+                  <span class="badge" style="opacity:.5;">—</span>
+                {% endif %}
+              </td>
+              <td>{{ 'Cartão' if h.destino == 'cartao' else 'Lançamentos' }}</td>
+              <td>{{ h.quantidade }}</td>
+              <td><small>{{ h.criado_em }}</small></td>
+              <td class="acoes">
+                <form method="post" action="{{ url_for('importar_desfazer', lote=h.lote) }}"
+                      onsubmit="return confirm('Desfazer esta importação e remover os lançamentos dela?')">
+                  <button type="submit" class="link-perigo">Desfazer</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="vazio">Nenhum extrato importado ainda.</p>
+    {% endif %}
+
+    {% if bancos_importados %}
+    <div style="margin-top: 16px;">
+      <h3 style="font-size:.85rem; color: var(--texto-sutil); margin-bottom: 8px;">Bancos com importações</h3>
+      <div class="badges-linha">
+        {% for b in bancos_importados %}
+          <span class="badge badge-categoria">{{ b }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </section>
+</div>
+
+{% if resultado %}
+<section class="painel">
+  <div class="painel-cabecalho">
+    <div>
+      <h2>Resultado da leitura: {{ resultado.arquivo }}</h2>
+      <span class="dica-zoom">
+        {{ resultado.lancados | length }} lançamento(s) criado(s)
+        {% if resultado.banco %} • Banco: <strong>{{ resultado.banco }}</strong>{% endif %}
+        {% if resultado.ignorados %} • {{ resultado.ignorados }} duplicado(s) ignorado(s){% endif %}
+      </span>
+    </div>
+    {% if resultado.lote %}
+      <form method="post" action="{{ url_for('importar_desfazer', lote=resultado.lote) }}"
+            onsubmit="return confirm('Desfazer esta importação?')">
+        <button type="submit" class="botao botao-secundario botao-pequeno">Desfazer importação</button>
+      </form>
+    {% endif %}
+  </div>
+
+  {% if resultado.lancados %}
+    <div class="resumo">
+      <div class="card entrada">
+        <span>Total de entradas lançadas</span>
+        <strong>{{ resultado.total_entradas | brl }}</strong>
+      </div>
+      <div class="card saida">
+        <span>Total de saídas lançadas</span>
+        <strong>{{ resultado.total_saidas | brl }}</strong>
+      </div>
+    </div>
+
+    <div class="tabela-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Descrição</th>
+            <th>Categoria</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in resultado.lancados %}
+          <tr>
+            <td>{{ item.data | data_br }}</td>
+            <td>{{ item.descricao }}</td>
+            <td><span class="badge badge-categoria">{{ item.categoria }}</span></td>
+            <td class="{{ item.tipo }}">{{ '-' if item.tipo == 'saida' else '+' }}{{ item.valor | brl }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const dropzone = document.getElementById("dropzone");
+  const inputArquivo = document.getElementById("arquivo-extrato");
+  const nomeArquivo = document.getElementById("nome-arquivo");
+  const dropzoneSub = document.getElementById("dropzone-sub");
+  const dropzoneTamanho = document.getElementById("dropzone-tamanho");
+  const dropzoneIcone = document.getElementById("dropzone-icone");
+  const btnImportar = document.getElementById("btn-importar");
+  const btnTexto = document.getElementById("btn-importar-texto");
+
+  function formatarTamanho(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  function mostrarArquivo(files) {
+    if (files && files.length) {
+      const f = files[0];
+      dropzone.classList.add("arquivo-selecionado");
+      dropzoneIcone.innerHTML = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>`;
+      nomeArquivo.textContent = f.name;
+      dropzoneSub.style.display = "none";
+      dropzoneTamanho.style.display = "block";
+      dropzoneTamanho.textContent = formatarTamanho(f.size);
+      btnImportar.disabled = false;
+      btnTexto.textContent = "Ler extrato e lançar automaticamente";
+    } else {
+      limparArquivo();
+    }
+  }
+
+  function limparArquivo() {
+    dropzone.classList.remove("arquivo-selecionado");
+    dropzoneIcone.innerHTML = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>`;
+    nomeArquivo.textContent = "Clique ou arraste o arquivo do extrato aqui";
+    dropzoneSub.style.display = "";
+    dropzoneTamanho.style.display = "none";
+    btnImportar.disabled = true;
+    btnTexto.textContent = "Selecione um arquivo primeiro";
+  }
+
+  inputArquivo.addEventListener("change", () => mostrarArquivo(inputArquivo.files));
+
+  ["dragenter", "dragover"].forEach((ev) => {
+    dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      dropzone.classList.add("ativo");
+    });
+  });
+
+  ["dragleave", "drop"].forEach((ev) => {
+    dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("ativo");
+    });
+  });
+
+  dropzone.addEventListener("drop", (e) => {
+    if (e.dataTransfer && e.dataTransfer.files.length) {
+      inputArquivo.files = e.dataTransfer.files;
+      mostrarArquivo(e.dataTransfer.files);
+    }
+  });
+</script>
+{% endblock %}

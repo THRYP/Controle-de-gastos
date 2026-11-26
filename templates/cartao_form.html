@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<h1>{{ titulo }}</h1>
+
+{% for e in erros %}
+  <p class="erro">{{ e }}</p>
+{% endfor %}
+
+<form method="post" class="formulario">
+  <label>Descrição da compra
+    <input type="text" name="descricao" value="{{ dados.descricao }}" placeholder="Ex.: Supermercado, Notebook, Cinema">
+  </label>
+
+  <label>Categoria / Etiqueta livre (opcional — escreva o que quiser)
+    <input type="text" name="categoria" value="{{ dados.categoria }}" placeholder="Ex.: Mercado, Viagem, Streaming, Casa...">
+  </label>
+
+  <div class="formulario-grade">
+    <label>Valor total (R$)
+      <input type="text" id="valor-total" name="valor_total" inputmode="decimal"
+             value="{{ '%.2f'|format(dados.valor_total)|replace('.', ',') if dados.valor_total is number else dados.valor_total }}"
+             placeholder="0,00">
+    </label>
+
+    <label>Número de parcelas
+      <input type="number" id="qtd-parcelas" name="parcelas" min="1" max="48" value="{{ dados.parcelas }}">
+    </label>
+
+    <label>Parcelas já pagas
+      <input type="number" name="parcelas_pagas" min="0" max="48" value="{{ dados.parcelas_pagas }}">
+    </label>
+
+    <label>Data da compra (1ª parcela)
+      <input type="date" name="data_compra" value="{{ dados.data_compra }}">
+    </label>
+  </div>
+
+  <p class="previa-parcela" id="previa-parcela">Informe o valor e as parcelas para ver o valor mensal.</p>
+
+  <div class="botoes">
+    <button type="submit" class="botao">Salvar</button>
+    <a href="{{ url_for('cartao') }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const inputValor = document.getElementById("valor-total");
+  const inputParcelas = document.getElementById("qtd-parcelas");
+  const previa = document.getElementById("previa-parcela");
+
+  function atualizarPrevia() {
+    const raw = (inputValor.value || "").replace(/\./g, "").replace(",", ".");
+    const total = parseFloat(raw);
+    const qtd = parseInt(inputParcelas.value, 10) || 1;
+    if (!isNaN(total) && total > 0 && qtd >= 1) {
+      const parcela = total / qtd;
+      previa.textContent = `${qtd}x de ${parcela.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`;
+    } else {
+      previa.textContent = "Informe o valor e as parcelas para ver o valor mensal.";
+    }
+  }
+
+  inputValor.addEventListener("input", atualizarPrevia);
+  inputParcelas.addEventListener("input", atualizarPrevia);
+  atualizarPrevia();
+</script>
+{% endblock %}

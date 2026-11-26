@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<h1>Planejamento e Metas</h1>
+
+<section class="resumo">
+  <div class="card neutro">
+    <span>Total das metas</span>
+    <strong>{{ total_alvo | brl }}</strong>
+    <small>{{ metas | length }} meta(s) cadastrada(s)</small>
+  </div>
+
+  <div class="card entrada">
+    <span>Já guardado nas metas</span>
+    <strong>{{ total_guardado | brl }}</strong>
+    <small>Soma dos aportes acumulados</small>
+  </div>
+
+  <div class="card {{ 'saida' if total_restante > 0 else 'entrada' }}">
+    <span>Falta para concluir</span>
+    <strong>{{ total_restante | brl }}</strong>
+    <small>Diferença restante</small>
+  </div>
+</section>
+
+<div class="grade-dupla">
+  <section class="painel">
+    <h2>Nova Meta</h2>
+    {% for e in erros %}
+      <p class="erro">{{ e }}</p>
+    {% endfor %}
+    <form method="post" class="formulario">
+      <label>Nome personalizado da meta
+        <input type="text" name="nome" value="{{ dados.nome }}" placeholder="Ex.: Reserva de emergência, Viagem">
+      </label>
+
+      <div class="formulario-grade">
+        <label>Valor da meta (R$)
+          <input type="text" name="valor_alvo" inputmode="decimal" value="{{ dados.valor_alvo }}" placeholder="0,00">
+        </label>
+
+        <label>Já guardado (R$)
+          <input type="text" name="valor_atual" inputmode="decimal" value="{{ dados.valor_atual }}" placeholder="0,00">
+        </label>
+      </div>
+
+      <label>Prazo (data limite)
+        <input type="date" name="prazo" value="{{ dados.prazo }}">
+      </label>
+
+      <div class="botoes">
+        <button type="submit" class="botao">Criar meta</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="painel">
+    <div class="painel-cabecalho">
+      <div>
+        <h2>Progresso das Metas</h2>
+        <span class="dica-zoom">Passe o mouse para destacar a meta</span>
+      </div>
+    </div>
+    {% if metas %}
+      <div class="grafico-box">
+        <canvas id="grafico-metas"></canvas>
+      </div>
+      <p class="leitura-hover" id="leitura-metas">Passe o mouse sobre uma meta para destacar e ver detalhes.</p>
+    {% else %}
+      <p class="vazio">Crie uma meta ao lado para acompanhar o gráfico de progresso.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="painel">
+  <h2>Suas Metas</h2>
+  {% if metas %}
+    <div class="grade-metas">
+      {% for m in metas %}
+      <div class="meta-card">
+        <div class="meta-topo">
+          <div>
+            <h3>{{ m.nome }}</h3>
+            <small class="meta-detalhes">Prazo: {{ m.prazo | data_br }}</small>
+          </div>
+          <span class="badge {{ 'badge-paga' if m.concluida else ('badge-vencida' if m.vencida else 'badge-aberta') }}">
+            {{ m.status_prazo }}
+          </span>
+        </div>
+
+        <div class="barra-progresso">
+          <div class="barra-preenchimento {{ 'concluida' if m.concluida }}" style="width: {{ m.progresso }}%"></div>
+        </div>
+
+        <div class="meta-valores">
+          <span>Guardado: <strong>{{ m.valor_atual | brl }}</strong></span>
+          <span>Objetivo: <strong>{{ m.valor_alvo | brl }}</strong></span>
+        </div>
+
+        <div class="meta-detalhes">
+          Progresso: <strong>{{ m.progresso }}%</strong>
+          {% if not m.concluida %}
+            • Falta: {{ m.restante | brl }} (sugestão: {{ m.aporte_mensal | brl }}/mês)
+          {% endif %}
+        </div>
+
+        <form method="post" action="{{ url_for('meta_aporte', id=m.id) }}" class="form-aporte">
+          <input type="text" name="valor" inputmode="decimal" placeholder="+ Aporte (R$)">
+          <button type="submit" class="botao botao-pequeno">Guardar</button>
+        </form>
+
+        <div class="acoes">
+          <a href="{{ url_for('meta_editar', id=m.id) }}" class="link-acao">Editar</a>
+          <form method="post" action="{{ url_for('meta_excluir', id=m.id) }}"
+                onsubmit="return confirm('Excluir esta meta?')">
+            <button type="submit" class="link-perigo">Excluir</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="vazio">Nenhuma meta criada ainda.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const listaMetas = {{ metas | tojson }};
+  if (listaMetas.length) {
+    criarGraficoMetas("grafico-metas", listaMetas, "leitura-metas");
+  }
+</script>
+{% endblock %}

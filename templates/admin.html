@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block titulo %}Painel do Administrador — Controle de Gastos{% endblock %}
+
+{% block conteudo %}
+<div class="topo-pagina">
+  <h1>Painel do Administrador</h1>
+  <div class="botoes">
+    <a href="{{ url_for('admin_usuario_novo') }}" class="botao">+ Novo usuário</a>
+  </div>
+</div>
+
+<div class="banner-privacidade">
+  <strong>Privacidade garantida:</strong> este painel gerencia exclusivamente contas e permissões de acesso.
+  Lançamentos, faturas de cartão e planejamentos individuais permanecem privados de cada usuário e não são exibidos aqui.
+</div>
+
+<section class="resumo">
+  <div class="card neutro">
+    <span>Total de usuários</span>
+    <strong>{{ resumo_usuarios.total }}</strong>
+    <small>Contas cadastradas no sistema</small>
+  </div>
+  <div class="card entrada">
+    <span>Usuários ativos</span>
+    <strong>{{ resumo_usuarios.ativos }}</strong>
+    <small>Com acesso liberado</small>
+  </div>
+  <div class="card {{ 'saida' if resumo_usuarios.bloqueados > 0 else 'neutro' }}">
+    <span>Bloqueados</span>
+    <strong>{{ resumo_usuarios.bloqueados }}</strong>
+    <small>Acesso suspenso</small>
+  </div>
+  <div class="card neutro">
+    <span>Contas Google (Gmail)</span>
+    <strong>{{ resumo_usuarios.google }}</strong>
+    <small>Administradores: {{ resumo_usuarios.admins }}</small>
+  </div>
+</section>
+
+<section class="painel">
+  <div class="painel-cabecalho">
+    <h2>Integração Login com Google (Gmail)</h2>
+    {% if google_oauth_configurado %}
+      <span class="badge badge-paga">OAuth Google ativo</span>
+    {% else %}
+      <span class="badge badge-aberta">Aguardando credenciais OAuth</span>
+    {% endif %}
+  </div>
+  <details {{ 'open' if not google_oauth_configurado }}>
+    <summary class="link-acao">
+      {{ 'Atualizar credenciais do Google OAuth (.env)' if google_oauth_configurado else 'Configurar GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET' }}
+    </summary>
+    <p class="texto-sutil" style="margin: 10px 0 12px;">
+      Cadastre a URI de redirecionamento <code>{{ google_redirect_uri_atual }}</code> no Google Cloud Console (Credenciais → ID do cliente OAuth 2.0) e salve abaixo:
+    </p>
+    <form method="post" action="{{ url_for('admin_config_google') }}" class="formulario">
+      <div class="formulario-grade">
+        <label>GOOGLE_CLIENT_ID
+          <input type="text" name="google_client_id" value="{{ google_client_id_atual }}" placeholder="xxxx.apps.googleusercontent.com" required>
+        </label>
+        <label>GOOGLE_CLIENT_SECRET
+          <input type="password" name="google_client_secret" placeholder="Cole o Client Secret" required>
+        </label>
+      </div>
+      <label>GOOGLE_REDIRECT_URI
+        <input type="text" name="google_redirect_uri" value="{{ google_redirect_uri_atual }}">
+      </label>
+      <div class="botoes">
+        <button type="submit" class="botao botao-pequeno">Salvar no .env</button>
+      </div>
+    </form>
+  </details>
+</section>
+
+<form method="get" class="filtros">
+  <label>Buscar usuário
+    <input type="text" name="q" value="{{ busca }}" placeholder="Nome ou e-mail...">
+  </label>
+  <label>Perfil
+    <select name="role" onchange="this.form.submit()">
+      <option value="">Todos</option>
+      <option value="user" {{ 'selected' if filtro_role == 'user' }}>Usuário</option>
+      <option value="admin" {{ 'selected' if filtro_role == 'admin' }}>Administrador</option>
+    </select>
+  </label>
+  <label>Status
+    <select name="status" onchange="this.form.submit()">
+      <option value="">Todos</option>
+      <option value="ativo" {{ 'selected' if filtro_status == 'ativo' }}>Ativo</option>
+      <option value="bloqueado" {{ 'selected' if filtro_status == 'bloqueado' }}>Bloqueado</option>
+    </select>
+  </label>
+  <button type="submit" class="botao botao-pequeno">Filtrar</button>
+  {% if busca or filtro_role or filtro_status %}
+    <a href="{{ url_for('admin_painel') }}" class="link-acao">Limpar</a>
+  {% endif %}
+</form>
+
+{% if usuarios %}
+<div class="tabela-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>Usuário</th>
+        <th>E-mail</th>
+        <th>Autenticação</th>
+        <th>Perfil</th>
+        <th>Status</th>
+        <th>Último acesso</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in usuarios %}
+      <tr class="{{ 'linha-paga' if not u.ativo else '' }}">
+        <td>
+          <div class="admin-usuario-cel">
+            {% if u.avatar_url %}
+              <img src="{{ u.avatar_url }}" alt="" class="usuario-avatar" referrerpolicy="no-referrer">
+            {% else %}
+              <span class="usuario-avatar usuario-iniciais">{{ (u.nome[:1] or 'U')|upper }}</span>
+            {% endif %}
+            <div>
+              <strong>{{ u.nome }}</strong>
+              {% if u.id == usuario_atual.id %}
+                <span class="texto-sutil">(você)</span>
+              {% endif %}
+            </div>
+          </div>
+        </td>
+        <td>{{ u.email }}</td>
+        <td>
+          {% if u.google_sub or u.provedor == 'google' %}
+            <span class="badge badge-google">Google / Gmail</span>
+          {% else %}
+            <span class="badge badge-local">Local</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if u.role == 'admin' %}
+            <span class="badge badge-admin">Administrador</span>
+          {% else %}
+            <span class="badge badge-categoria">Usuário</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if u.ativo %}
+            <span class="badge badge-paga">Ativo</span>
+          {% else %}
+            <span class="badge badge-vencida">Bloqueado</span>
+          {% endif %}
+        </td>
+        <td>{{ u.ultimo_login or 'Nunca acessou' }}</td>
+        <td class="acoes">
+          <a href="{{ url_for('admin_usuario_editar', id=u.id) }}" class="link-acao">Editar</a>
+          {% if u.id != usuario_atual.id %}
+            <form method="post" action="{{ url_for('admin_usuario_status', id=u.id) }}">
+              <button type="submit" class="link-acao">
+                {{ 'Bloquear' if u.ativo else 'Ativar' }}
+              </button>
+            </form>
+            <form method="post" action="{{ url_for('admin_usuario_excluir', id=u.id) }}"
+                  onsubmit="return confirm('Excluir este usuário e limpar os registros vinculados a ele?')">
+              <button type="submit" class="link-perigo">Excluir</button>
+            </form>
+          {% else %}
+            <span class="texto-sutil">Conta atual</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  <p class="vazio">Nenhum usuário encontrado para os filtros aplicados.</p>
+{% endif %}
+{% endblock %}

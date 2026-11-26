@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="topo-pagina">
+  <h1>Gastos e Controle no Cartão</h1>
+  <a href="{{ url_for('cartao_novo') }}" class="botao">+ Novo gasto no cartão</a>
+</div>
+
+<form method="get" class="filtros">
+  <label>Mês da fatura
+    <input type="month" name="mes" value="{{ mes }}" onchange="this.form.submit()">
+  </label>
+
+  <label>Banco
+    <select name="banco" onchange="this.form.submit()">
+      <option value="">Todos os bancos</option>
+      {% for b in bancos_disponiveis %}
+        <option value="{{ b }}" {{ 'selected' if banco_filtro == b }}>{{ b }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <label>Filtrar por categoria
+    <select name="categoria" onchange="this.form.submit()">
+      <option value="">Todas</option>
+      {% for cat in categorias %}
+        <option value="{{ cat }}" {{ 'selected' if categoria == cat }}>{{ cat }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  {% if categoria or banco_filtro %}
+    <a href="{{ url_for('cartao', mes=mes) }}" class="botao botao-secundario">Limpar filtros</a>
+  {% endif %}
+</form>
+
+<section class="resumo">
+  <div class="card neutro">
+    <span>Fatura de {{ mes | mes_br }}{% if banco_filtro %} — {{ banco_filtro }}{% endif %}{% if categoria %} ({{ categoria }}){% endif %}</span>
+    <strong>{{ total_fatura | brl }}</strong>
+    <small>Em aberto neste mês: {{ total_fatura_aberta | brl }}</small>
+  </div>
+
+  <div class="card {{ 'saida' if total_restante_geral > 0 else 'entrada' }}">
+    <span>Total que falta pagar</span>
+    <strong>{{ total_restante_geral | brl }}</strong>
+    <small>Todas as parcelas em aberto{% if categoria %} em {{ categoria }}{% endif %}</small>
+  </div>
+
+  <div class="card {{ 'entrada' if fatura_mes_paga else 'neutro' }}">
+    <span>Status da fatura</span>
+    <strong>{{ 'Paga ✓' if fatura_mes_paga else 'Em aberto' }}</strong>
+    <small>{{ mes | mes_br }}{% if banco_filtro %} · {{ banco_filtro }}{% endif %}</small>
+  </div>
+
+  <div class="card neutro">
+    <span>Lançamentos na fatura</span>
+    <strong>{{ fatura_itens | length }}</strong>
+    <small>{{ compras | length }} compra(s) cadastrada(s)</small>
+  </div>
+</section>
+
+<!-- Botão marcar fatura como paga/aberta -->
+<div style="margin: 0 0 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+  <form method="post" action="{{ url_for('cartao_fatura_pagar') }}">
+    <input type="hidden" name="mes" value="{{ mes }}">
+    <input type="hidden" name="banco" value="{{ banco_filtro }}">
+    {% if fatura_mes_paga %}
+      <input type="hidden" name="acao" value="reabrir">
+      <button type="submit" class="botao botao-secundario">↩ Reabrir fatura de {{ mes | mes_br }}</button>
+    {% else %}
+      <input type="hidden" name="acao" value="pagar">
+      <button type="submit" class="botao botao-sucesso">✓ Marcar fatura de {{ mes | mes_br }} como paga</button>
+    {% endif %}
+  </form>
+  {% if fatura_mes_paga %}
+    <span class="badge badge-paga" style="font-size:.85rem; padding: 6px 12px;">Fatura paga</span>
+  {% endif %}
+</div>
+
+<div class="grade-dupla">
+  <section class="painel">
+    <div class="painel-cabecalho">
+      <div>
+        <h2>Distribuição em {{ mes | mes_br }}</h2>
+        <span class="dica-zoom">Passe o mouse para ampliar a fatia</span>
+      </div>
+    </div>
+    {% if por_categoria %}
+      <div class="grafico-rosca-box">
+        <canvas id="grafico-cartao-categorias"></canvas>
+      </div>
+      <p class="leitura-hover" id="leitura-cartao">Passe o mouse sobre uma fatia para dar zoom.</p>
+    {% else %}
+      <p class="vazio">Nenhuma parcela neste mês para exibir no gráfico.</p>
+    {% endif %}
+  </section>
+
+  <section class="painel">
+    <h2>Fatura de {{ mes | mes_br }}{% if fatura_mes_paga %} <span class="badge badge-paga" style="font-size:.75rem;">Paga</span>{% endif %}</h2>
+    {% if fatura_itens %}
+      <div class="tabela-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Compra</th>
+              <th>Categoria</th>
+              <th>Parcela</th>
+              <th>Valor</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in fatura_itens %}
+            <tr class="{{ 'linha-paga' if item.paga else '' }}">
+              <td>
+                <strong>{{ item.descricao }}</strong><br>
+                <small>{{ item.data_compra | data_br }}</small>
+                {% if item.banco %}<br><small class="texto-sutil">{{ item.banco }}</small>{% endif %}
+              </td>
+              <td><span class="badge badge-categoria">{{ item.categoria }}</span></td>
+              <td>{{ item.numero_parcela }}/{{ item.total_parcelas }}</td>
+              <td class="{{ 'saida-tachada' if item.paga else 'saida' }}">{{ item.valor | brl }}</td>
+              <td>
+                {% if item.paga %}
+                  <span class="badge badge-paga">Paga</span>
+                {% else %}
+                  <span class="badge badge-aberta">Em aberto</span>
+                {% endif %}
+              </td>
+              <td class="acoes">
+                <form method="post" action="{{ url_for('cartao_parcela', id=item.id) }}">
+                  {% if item.paga %}
+                    <input type="hidden" name="acao" value="desfazer">
+                    <button type="submit" class="link-acao">Desfazer</button>
+                  {% else %}
+                    <input type="hidden" name="acao" value="pagar">
+                    <button type="submit" class="link-acao">Pagar</button>
+                  {% endif %}
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="vazio">Nenhuma parcela encontrada para este filtro.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="painel">
+  <h2>Compras e Parcelamentos Cadastrados</h2>
+  {% if compras %}
+    <div class="tabela-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Descrição</th>
+            <th>Banco</th>
+            <th>Categoria</th>
+            <th>Valor total</th>
+            <th>Parcelas</th>
+            <th>Falta pagar</th>
+            <th>Período</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in compras %}
+          <tr class="{{ 'linha-paga' if c.quitado else '' }}">
+            <td>{{ c.data_compra | data_br }}</td>
+            <td>{{ c.descricao }}</td>
+            <td>
+              {% if c.banco %}
+                <span class="badge badge-categoria" style="font-size:.72rem;">{{ c.banco }}</span>
+              {% else %}
+                <span style="opacity:.4;">—</span>
+              {% endif %}
+            </td>
+            <td><span class="badge badge-categoria">{{ c.categoria }}</span></td>
+            <td>{{ c.valor_total | brl }}</td>
+            <td>{{ c.parcelas_pagas }}/{{ c.parcelas }} ({{ c.valor_parcela_media | brl }}/mês)</td>
+            <td class="{{ 'saida' if c.valor_restante > 0 else 'entrada' }}">{{ c.valor_restante | brl }}</td>
+            <td>{{ c.mes_inicio | mes_br }} → {{ c.mes_fim | mes_br }}</td>
+            <td class="acoes">
+              <a href="{{ url_for('cartao_editar', id=c.id) }}" class="link-acao">Editar</a>
+              <form method="post" action="{{ url_for('cartao_excluir', id=c.id) }}"
+                    onsubmit="return confirm('Excluir esta compra no cartão?')">
+                <button type="submit" class="link-perigo">Excluir</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="vazio">Nenhuma compra no cartão cadastrada ainda.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const catCartao = {{ por_categoria | tojson }};
+  const labelsCartao = Object.keys(catCartao);
+  const valoresCartao = Object.values(catCartao);
+  if (labelsCartao.length) {
+    criarGraficoRoscaZoom("grafico-cartao-categorias", labelsCartao, valoresCartao, "leitura-cartao");
+  }
+</script>
+{% endblock %}

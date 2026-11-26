@@ -3,21 +3,95 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Controle de Gastos</title>
+  <title>{% block titulo %}Controle de Gastos{% endblock %}</title>
+  <script>
+    (function () {
+      var salvo = localStorage.getItem("tema");
+      var prefereEscuro = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.dataset.theme = salvo || (prefereEscuro ? "dark" : "light");
+    })();
+  </script>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
+  {% set ep = request.endpoint or '' %}
   <header>
-    <a href="{{ url_for('index') }}" class="logo">Controle de Gastos</a>
-    <a href="{{ url_for('novo') }}" class="botao">+ Novo</a>
+    <a href="{{ url_for('admin_painel') if usuario_atual and usuario_atual.role == 'admin' else (url_for('resumo') if usuario_atual else url_for('login')) }}" class="logo">
+      <span class="logo-marca"></span>
+      Controle de Gastos
+    </a>
+    <div class="header-direita">
+      {% if usuario_atual %}
+      <nav>
+        <a href="{{ url_for('resumo') }}" class="{{ 'ativo' if ep == 'resumo' }}">Resumo</a>
+        <a href="{{ url_for('cartao') }}" class="{{ 'ativo' if ep.startswith('cartao') }}">Cartão</a>
+        <a href="{{ url_for('planejamento') }}" class="{{ 'ativo' if ep == 'planejamento' or ep.startswith('meta') }}">Planejamento</a>
+        <a href="{{ url_for('lancamentos') }}" class="{{ 'ativo' if ep in ['lancamentos', 'novo', 'editar'] }}">Lançamentos</a>
+        <a href="{{ url_for('importar_extrato') }}" class="{{ 'ativo' if ep.startswith('importar') }}">Importar Extrato</a>
+        {% if usuario_atual.role == 'admin' %}
+          <a href="{{ url_for('admin_painel') }}" class="{{ 'ativo' if ep.startswith('admin') }}">Painel Admin</a>
+        {% endif %}
+      </nav>
+      <div class="usuario-pill" title="{{ usuario_atual.email }}">
+        {% if usuario_atual.avatar_url %}
+          <img src="{{ usuario_atual.avatar_url }}" alt="" class="usuario-avatar" referrerpolicy="no-referrer">
+        {% else %}
+          <span class="usuario-avatar usuario-iniciais">{{ (usuario_atual.nome[:1] or 'U')|upper }}</span>
+        {% endif %}
+        <span class="usuario-nome">{{ usuario_atual.nome }}</span>
+        {% if usuario_atual.role == 'admin' %}
+          <span class="badge badge-admin">Admin</span>
+        {% endif %}
+      </div>
+      <form method="post" action="{{ url_for('logout') }}" class="form-logout">
+        <button type="submit" class="btn-tema btn-sair">Sair</button>
+      </form>
+      {% endif %}
+      <button type="button" id="btn-tema" class="btn-tema" aria-label="Alternar tema">
+        <span id="icone-tema">🌙</span>
+        <span id="texto-tema">Escuro</span>
+      </button>
+    </div>
   </header>
-  <main>
+  <main class="{% block main_class %}{% endblock %}">
     {% with mensagens = get_flashed_messages() %}
-      {% for m in mensagens %}
-        <p class="aviso">{{ m }}</p>
-      {% endfor %}
+      {% if mensagens %}
+        <div class="mensagens-topo">
+          {% for m in mensagens %}
+            <p class="aviso">{{ m }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
     {% endwith %}
     {% block conteudo %}{% endblock %}
   </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="{{ url_for('static', filename='graficos.js') }}"></script>
+  <script>
+    (function () {
+      const btn = document.getElementById("btn-tema");
+      const icone = document.getElementById("icone-tema");
+      const texto = document.getElementById("texto-tema");
+
+      function sincronizarBotao() {
+        const escuro = document.documentElement.dataset.theme === "dark";
+        icone.textContent = escuro ? "☀️" : "🌙";
+        texto.textContent = escuro ? "Claro" : "Escuro";
+      }
+
+      sincronizarBotao();
+      btn.addEventListener("click", function () {
+        const proximo = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        document.documentElement.dataset.theme = proximo;
+        localStorage.setItem("tema", proximo);
+        sincronizarBotao();
+        if (typeof window.atualizarTemaGraficos === "function") {
+          window.atualizarTemaGraficos();
+        }
+      });
+    })();
+  </script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,594 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="topo-pagina">
+  <div class="botoes">
+    <h1>Resumo Geral</h1>
+    <form method="get" class="mes-seletor-inline">
+      <input type="month" name="mes" value="{{ hoje_mes }}" onchange="this.form.submit()" aria-label="Mês de referência">
+    </form>
+  </div>
+  <div class="botoes">
+    <a href="{{ url_for('importar_extrato') }}" class="botao botao-secundario">Importar extrato</a>
+    <a href="{{ url_for('cartao_novo') }}" class="botao botao-secundario">+ Gasto no cartão</a>
+    <a href="{{ url_for('novo') }}" class="botao">+ Novo lançamento</a>
+  </div>
+</div>
+
+<section class="resumo">
+  <div class="card {{ 'entrada' if total_guardado >= 0 else 'saida' }}">
+    <span>Quanto você tem guardado</span>
+    <strong>{{ total_guardado | brl }}</strong>
+    <small>Caixa: {{ saldo_caixa | brl }} • Metas: {{ total_metas | brl }}</small>
+  </div>
+
+  <div class="card {{ 'saida' if total_deve > 0 else 'neutro' }}">
+    <span>Quanto você deve</span>
+    <strong>{{ total_deve | brl }}</strong>
+    <small>{{ compras_abertas }} compra(s) • {{ parcelas_abertas }} parcela(s) em aberto</small>
+  </div>
+
+  <div class="card {{ 'entrada' if patrimonio_liquido >= 0 else 'saida' }}">
+    <span>Patrimônio líquido</span>
+    <strong>{{ patrimonio_liquido | brl }}</strong>
+    <small>Guardado menos dívidas do cartão</small>
+  </div>
+
+  <div class="card {{ 'entrada' if sobra_falta_mes >= 0 else 'saida' }}">
+    <span>{{ 'Sobra' if sobra_falta_mes >= 0 else 'Falta' }} em {{ hoje_mes | mes_br }}</span>
+    <strong>{{ sobra_falta_mes | brl }}</strong>
+    <small>Entrou: {{ entradas_mes | brl }} • Gastou: {{ total_gasto_mes | brl }}</small>
+  </div>
+</section>
+
+<section class="grade-graficos">
+  <div class="painel">
+    <div class="painel-cabecalho">
+      <div>
+        <h2>Tempo e Evolução Patrimonial</h2>
+        <span class="dica-zoom">Passe o mouse para ampliar o mês</span>
+      </div>
+      <div class="periodo-botoes">
+        <button type="button" class="periodo-btn ativo" data-periodo="6">6 meses</button>
+        <button type="button" class="periodo-btn" data-periodo="12">12 meses</button>
+        <button type="button" class="periodo-btn" data-periodo="0">Tudo</button>
+      </div>
+    </div>
+    <div class="grafico-box">
+      <canvas id="grafico-evolucao"></canvas>
+    </div>
+    <p class="leitura-hover" id="leitura-evolucao">Passe o mouse sobre os meses para dar zoom nos detalhes.</p>
+  </div>
+
+  <div class="painel">
+    <div class="painel-cabecalho">
+      <div>
+        <h2>Gastos no Cartão ({{ hoje_mes | mes_br }})</h2>
+        <span class="dica-zoom" id="fatura-filtrada-texto">Total no cartão: {{ fatura_mes | brl }}</span>
+      </div>
+      <div class="botoes">
+        {% if categorias_cartao_mes %}
+          <select id="filtro-cat-resumo" class="select-compacto" aria-label="Filtrar gastos do cartão por categoria">
+            <option value="">Todas as categorias</option>
+            {% for cat in categorias_cartao_mes %}
+              <option value="{{ cat }}">{{ cat }}</option>
+            {% endfor %}
+          </select>
+        {% endif %}
+        <a href="{{ url_for('cartao', mes=hoje_mes) }}" class="link-acao">Ver cartão</a>
+      </div>
+    </div>
+    {% if por_categoria_cartao %}
+      <div class="grafico-rosca-box">
+        <canvas id="grafico-resumo-cartao"></canvas>
+      </div>
+      <p class="leitura-hover" id="leitura-resumo-cartao">Passe o mouse sobre uma fatia para dar zoom.</p>
+    {% else %}
+      <p class="vazio">Sem gastos no cartão neste mês.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="painel">
+  <div class="painel-cabecalho">
+    <div>
+      <h2>Tabela de Gasto Mensal — {{ hoje_mes | mes_br }}</h2>
+      <span class="dica-zoom">Resumo do que entrou, quanto gastou e quanto sobra ou falta neste mês</span>
+    </div>
+  </div>
+
+  <div class="tabela-scroll" style="margin-bottom: 18px;">
+    <table>
+      <thead>
+        <tr>
+          <th>Indicador mensal</th>
+          <th>Detalhe</th>
+          <th>Valor</th>
+          <th>Situação</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Quanto você tem guardado</strong></td>
+          <td>Caixa acumulado + valor nas metas</td>
+          <td class="{{ 'entrada' if total_guardado >= 0 else 'saida' }}">{{ total_guardado | brl }}</td>
+          <td><span class="badge badge-categoria">Reserva total</span></td>
+        </tr>
+        <tr>
+          <td><strong>Quanto entrou no mês</strong></td>
+          <td>Entradas registradas em {{ hoje_mes | mes_br }}</td>
+          <td class="entrada">+{{ entradas_mes | brl }}</td>
+          <td><span class="badge badge-paga">Receitas</span></td>
+        </tr>
+        <tr>
+          <td><strong>Quanto gastou na conta</strong></td>
+          <td>Saídas pagas à vista / Pix / débito</td>
+          <td class="saida">-{{ saidas_mes | brl }}</td>
+          <td><span class="badge badge-aberta">Conta</span></td>
+        </tr>
+        <tr>
+          <td><strong>Quanto gastou no cartão</strong></td>
+          <td>Parcelas e compras na fatura de {{ hoje_mes | mes_br }}</td>
+          <td class="saida">-{{ fatura_mes | brl }}</td>
+          <td><span class="badge badge-aberta">Cartão</span></td>
+        </tr>
+        <tr class="linha-destaque">
+          <td>Total gasto em {{ hoje_mes | mes_br }}</td>
+          <td>Conta + Cartão no mês</td>
+          <td class="saida">-{{ total_gasto_mes | brl }}</td>
+          <td><span class="badge badge-vencida">Total de gastos</span></td>
+        </tr>
+        <tr class="linha-destaque">
+          <td>Quanto gastou na conta (pago)</td>
+          <td>Saídas já marcadas como pagas</td>
+          <td class="entrada">{{ saidas_pagas_mes | brl }}</td>
+          <td><span class="badge badge-paga">Pago</span></td>
+        </tr>
+        <tr>
+          <td>Quanto gastou na conta (pendente)</td>
+          <td>Saídas ainda pendentes de pagamento</td>
+          <td class="{{ 'saida' if saidas_pendentes_mes > 0 else 'neutro' }}">{{ saidas_pendentes_mes | brl }}</td>
+          <td><span class="badge badge-aberta">Pendente</span></td>
+        </tr>
+        <tr>
+          <td><strong>Fatura do cartão em {{ hoje_mes | mes_br }}</strong></td>
+          <td>Total de parcelas neste mês no cartão</td>
+          <td class="saida">-{{ fatura_mes | brl }}</td>
+          <td>
+            {% if fatura_paga %}
+              <span class="badge badge-paga">Fatura paga ✓</span>
+            {% else %}
+              <span class="badge badge-aberta">Fatura em aberto</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr class="linha-destaque">
+          <td>Total gasto em {{ hoje_mes | mes_br }}</td>
+          <td>Conta + Cartão no mês</td>
+          <td class="saida">-{{ total_gasto_mes | brl }}</td>
+          <td><span class="badge badge-vencida">Total de gastos</span></td>
+        </tr>
+        <tr class="linha-destaque">
+          <td>Saldo do mês (Sobra ou Falta)</td>
+          <td>Entradas do mês menos total gasto no mês</td>
+          <td class="{{ 'entrada' if sobra_falta_mes >= 0 else 'saida' }}">{{ sobra_falta_mes | brl }}</td>
+          <td>
+            {% if sobra_falta_mes >= 0 %}
+              <span class="badge badge-paga">Sobra no mês</span>
+            {% else %}
+              <span class="badge badge-vencida">Falta no mês</span>
+            {% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="painel-cabecalho">
+    <div>
+      <h2>Movimentações efetuadas em {{ hoje_mes | mes_br }} ({{ movimentacoes_mes | length }})</h2>
+      <span class="dica-zoom">Você pode alterar a categoria de qualquer item diretamente na tabela</span>
+    </div>
+    <select id="filtro-mov-cat" class="select-compacto" aria-label="Filtrar tabela mensal por categoria">
+      <option value="">Todas as categorias</option>
+    </select>
+  </div>
+
+  {% if movimentacoes_mes %}
+    <div class="tabela-scroll">
+      <table id="tabela-mov-mes">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Origem</th>
+            <th>Descrição</th>
+            <th>Categoria (editável)</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for mov in movimentacoes_mes %}
+          <tr data-categoria="{{ mov.categoria }}" data-origem="{{ mov.origem }}" data-id="{{ mov.id }}">
+            <td>{{ mov.data | data_br }}</td>
+            <td><span class="badge badge-categoria">{{ mov.origem_label }}</span></td>
+            <td>{{ mov.descricao }}</td>
+            <td>
+              <button type="button"
+                      class="cat-pill-btn"
+                      data-url="{{ url_for('atualizar_categoria', origem=mov.origem, id=mov.id) }}"
+                      data-categoria="{{ mov.categoria }}">
+                <span class="cat-pill-texto">{{ mov.categoria }}</span>
+                <span class="cat-pill-seta">▾</span>
+              </button>
+            </td>
+            <td class="{{ mov.tipo }}">{{ '+' if mov.tipo == 'entrada' else '-' }}{{ mov.valor | brl }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="vazio">Nenhuma movimentação registrada em {{ hoje_mes | mes_br }}.</p>
+  {% endif %}
+</section>
+
+<div id="cat-popover" class="cat-popover" role="dialog" aria-label="Escolher categoria">
+  <div class="cat-popover-titulo">
+    <span>Escolha ou crie uma categoria</span>
+    <button type="button" id="cat-popover-fechar" class="cat-popover-fechar" aria-label="Fechar">✕</button>
+  </div>
+  <div class="cat-busca-wrap">
+    <input type="text" id="cat-busca" class="cat-busca-input" placeholder="Buscar ou digitar nova categoria...">
+  </div>
+  <div id="cat-grid" class="cat-grid"></div>
+  <button type="button" id="cat-criar-btn" class="cat-chip cat-chip-personalizada" style="display: none;"></button>
+</div>
+
+<div id="toast-cat" class="toast-flutuante" aria-live="polite"></div>
+
+<!-- Seção de Previsão / Especulação -->
+<section class="painel painel-previsao">
+  <div class="painel-cabecalho">
+    <div>
+      <h2>📊 Previsão e Especulação de Gastos</h2>
+      <span class="dica-zoom">Baseado no mês anterior e na projeção do mês atual</span>
+    </div>
+    <span class="previsao-tendencia previsao-{{ previsao.tendencia }}">
+      {% if previsao.tendencia == 'alta' %}📈 Tendência de alta{% elif previsao.tendencia == 'queda' %}📉 Tendência de queda{% else %}➡️ Estável{% endif %}
+      {% if previsao.variacao_pct != 0 %} ({{ '+' if previsao.variacao_pct > 0 else '' }}{{ previsao.variacao_pct }}%){% endif %}
+    </span>
+  </div>
+
+  <div class="grade-previsao">
+    <div class="previsao-card">
+      <span class="previsao-label">Mês anterior ({{ previsao.mes_anterior | mes_br }})</span>
+      <strong class="previsao-valor saida">{{ previsao.total_anterior | brl }}</strong>
+      <small>Total gasto no mês passado</small>
+    </div>
+    <div class="previsao-card">
+      <span class="previsao-label">Mês atual ({{ hoje_mes | mes_br }}) — até agora</span>
+      <strong class="previsao-valor saida">{{ previsao.total_atual | brl }}</strong>
+      <small>Conta + Cartão registrados</small>
+    </div>
+    <div class="previsao-card destaque">
+      <span class="previsao-label">Projeção para fechar {{ hoje_mes | mes_br }}</span>
+      <strong class="previsao-valor saida">{{ previsao.projecao_mes_atual | brl }}</strong>
+      <small>Extrapolado pelo ritmo de gastos diários</small>
+    </div>
+    <div class="previsao-card destaque-forte">
+      <span class="previsao-label">Estimativa para {{ previsao.proximo_mes | mes_br }}</span>
+      <strong class="previsao-valor saida">{{ previsao.estimativa_proximo | brl }}</strong>
+      <small>Média entre mês anterior e projeção atual</small>
+    </div>
+  </div>
+</section>
+
+<section class="painel">
+  <div class="painel-cabecalho">
+    <h2>Metas de Planejamento ({{ total_metas_qtd }})</h2>
+    <a href="{{ url_for('planejamento') }}" class="link-acao">Gerenciar metas</a>
+  </div>
+  {% if metas %}
+    <div class="grade-metas">
+      {% for m in metas %}
+      <div class="meta-card">
+        <div class="meta-topo">
+          <h3>{{ m.nome }}</h3>
+          <span class="badge {{ 'badge-paga' if m.concluida else ('badge-vencida' if m.vencida else 'badge-aberta') }}">
+            {{ m.status_prazo }}
+          </span>
+        </div>
+        <div class="barra-progresso">
+          <div class="barra-preenchimento {{ 'concluida' if m.concluida }}" style="width: {{ m.progresso }}%"></div>
+        </div>
+        <div class="meta-valores">
+          <span>{{ m.valor_atual | brl }} de {{ m.valor_alvo | brl }}</span>
+          <strong>{{ m.progresso }}%</strong>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="vazio">Nenhuma meta criada ainda. <a href="{{ url_for('planejamento') }}">Crie sua primeira meta</a>.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const serieEvolucao = {{ serie_evolucao | tojson }};
+  criarGraficoEvolucao("grafico-evolucao", serieEvolucao, "leitura-evolucao");
+
+  const itensCartaoMes = {{ fatura_itens_mes | tojson }};
+  const catResumoInicial = {{ por_categoria_cartao | tojson }};
+  let graficoCartaoResumo = null;
+
+  function calcularResumoCartao() {
+    const mapa = {};
+    itensCartaoMes.forEach((i) => {
+      mapa[i.categoria] = (mapa[i.categoria] || 0) + i.valor;
+    });
+    return mapa;
+  }
+
+  if (Object.keys(catResumoInicial).length) {
+    graficoCartaoResumo = criarGraficoRoscaZoom(
+      "grafico-resumo-cartao",
+      Object.keys(catResumoInicial),
+      Object.values(catResumoInicial),
+      "leitura-resumo-cartao"
+    );
+  }
+
+  const filtroCartao = document.getElementById("filtro-cat-resumo");
+  const textoFatura = document.getElementById("fatura-filtrada-texto");
+
+  function atualizarGraficoCartao() {
+    if (!graficoCartaoResumo) return;
+    const cat = filtroCartao ? filtroCartao.value : "";
+    if (!cat) {
+      const mapa = calcularResumoCartao();
+      const labels = Object.keys(mapa);
+      const vals = Object.values(mapa);
+      const total = vals.reduce((a, b) => a + b, 0);
+      if (textoFatura) textoFatura.textContent = "Total no cartão: " + formatarBRL(total);
+      graficoCartaoResumo.atualizarFatia(labels, vals);
+    } else {
+      const filtrados = itensCartaoMes.filter((i) => i.categoria === cat);
+      const porItem = {};
+      filtrados.forEach((i) => {
+        const nome = i.descricao.length > 28 ? i.descricao.slice(0, 28) + "…" : i.descricao;
+        porItem[nome] = (porItem[nome] || 0) + i.valor;
+      });
+      const labels = Object.keys(porItem);
+      const vals = Object.values(porItem);
+      const total = vals.reduce((a, b) => a + b, 0);
+      if (textoFatura) textoFatura.textContent = cat + ": " + formatarBRL(total);
+      graficoCartaoResumo.atualizarFatia(labels, vals);
+    }
+  }
+
+  function sincronizarOpcoesFiltroCartao() {
+    if (!filtroCartao) return;
+    const selecionado = filtroCartao.value;
+    const cats = [...new Set(itensCartaoMes.map((i) => i.categoria))].sort();
+    filtroCartao.innerHTML = '<option value="">Todas as categorias</option>';
+    cats.forEach((c) => {
+      const opt = document.createElement("option");
+      opt.value = c;
+      opt.textContent = c;
+      if (c === selecionado) opt.selected = true;
+      filtroCartao.appendChild(opt);
+    });
+  }
+
+  if (filtroCartao && graficoCartaoResumo) {
+    filtroCartao.addEventListener("change", atualizarGraficoCartao);
+  }
+
+  const tabelaMov = document.getElementById("tabela-mov-mes");
+  const filtroMov = document.getElementById("filtro-mov-cat");
+
+  function sincronizarFiltroTabela() {
+    if (!tabelaMov || !filtroMov) return;
+    const atual = filtroMov.value;
+    const linhas = Array.from(tabelaMov.querySelectorAll("tbody tr"));
+    const catsUnicas = [...new Set(linhas.map((tr) => tr.dataset.categoria))].sort();
+    filtroMov.innerHTML = '<option value="">Todas as categorias</option>';
+    catsUnicas.forEach((c) => {
+      const opt = document.createElement("option");
+      opt.value = c;
+      opt.textContent = c;
+      if (c === atual) opt.selected = true;
+      filtroMov.appendChild(opt);
+    });
+    linhas.forEach((tr) => {
+      tr.style.display = !filtroMov.value || tr.dataset.categoria === filtroMov.value ? "" : "none";
+    });
+  }
+
+  if (tabelaMov && filtroMov) {
+    sincronizarFiltroTabela();
+    filtroMov.addEventListener("change", sincronizarFiltroTabela);
+  }
+
+  // Tabela visual de escolha rápida de categoria (popover)
+  const CATEGORIAS_BASE = [
+    { nome: "Alimentação", icone: "🍽️" },
+    { nome: "Compras", icone: "🛍️" },
+    { nome: "Viagem", icone: "✈️" },
+    { nome: "Dívida", icone: "💳" },
+    { nome: "Juros", icone: "📈" },
+    { nome: "Transporte", icone: "🚗" },
+    { nome: "Lazer", icone: "🎮" },
+    { nome: "Educação", icone: "🎓" },
+    { nome: "Saúde", icone: "💊" },
+    { nome: "Assinaturas", icone: "📺" },
+    { nome: "Moradia", icone: "🏠" },
+    { nome: "Transferência / Pix", icone: "🔁" },
+    { nome: "Salário", icone: "💼" },
+    { nome: "Outros", icone: "📌" },
+  ];
+
+  const popover = document.getElementById("cat-popover");
+  const catGrid = document.getElementById("cat-grid");
+  const catBusca = document.getElementById("cat-busca");
+  const catCriarBtn = document.getElementById("cat-criar-btn");
+  const catFechar = document.getElementById("cat-popover-fechar");
+  const toast = document.getElementById("toast-cat");
+  let botaoAtivo = null;
+  let toastTimer = null;
+
+  function mostrarToast(msg) {
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.add("visivel");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("visivel"), 2400);
+  }
+
+  function obterTodasCategorias() {
+    const mapaIcones = new Map(CATEGORIAS_BASE.map((c) => [c.nome, c.icone]));
+    if (tabelaMov) {
+      tabelaMov.querySelectorAll("tbody tr").forEach((tr) => {
+        const c = tr.dataset.categoria;
+        if (c && !mapaIcones.has(c)) mapaIcones.set(c, "🏷️");
+      });
+    }
+    return Array.from(mapaIcones.entries()).map(([nome, icone]) => ({ nome, icone }));
+  }
+
+  function renderizarGradeCategorias() {
+    if (!botaoAtivo) return;
+    const termo = (catBusca.value || "").trim().toLowerCase();
+    const atual = botaoAtivo.dataset.categoria;
+    const todas = obterTodasCategorias();
+    const filtradas = todas.filter((c) => !termo || c.nome.toLowerCase().includes(termo));
+
+    catGrid.innerHTML = "";
+    filtradas.forEach((c) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "cat-chip" + (c.nome === atual ? " selecionada" : "");
+      const sIcon = document.createElement("span");
+      sIcon.textContent = c.icone;
+      const sNome = document.createElement("span");
+      sNome.textContent = c.nome;
+      chip.appendChild(sIcon);
+      chip.appendChild(sNome);
+      chip.addEventListener("click", () => aplicarCategoria(c.nome));
+      catGrid.appendChild(chip);
+    });
+
+    const textoDigitado = (catBusca.value || "").trim();
+    const existeExata = todas.some((c) => c.nome.toLowerCase() === textoDigitado.toLowerCase());
+    if (textoDigitado && !existeExata) {
+      catCriarBtn.style.display = "flex";
+      catCriarBtn.textContent = `+ Usar "${textoDigitado}"`;
+      catCriarBtn.onclick = () => aplicarCategoria(textoDigitado);
+    } else {
+      catCriarBtn.style.display = "none";
+    }
+  }
+
+  function abrirPopover(btn) {
+    botaoAtivo = btn;
+    catBusca.value = "";
+    renderizarGradeCategorias();
+    popover.classList.add("aberto");
+
+    const rect = btn.getBoundingClientRect();
+    const popRect = popover.getBoundingClientRect();
+    const espacoAbaixo = window.innerHeight - rect.bottom;
+    const top = espacoAbaixo >= popRect.height + 16
+      ? rect.bottom + 6
+      : Math.max(12, rect.top - popRect.height - 6);
+    const left = Math.min(rect.left, window.innerWidth - popRect.width - 12);
+
+    popover.style.top = `${top}px`;
+    popover.style.left = `${Math.max(12, left)}px`;
+    catBusca.focus();
+  }
+
+  function fecharPopover() {
+    popover.classList.remove("aberto");
+    botaoAtivo = null;
+  }
+
+  async function aplicarCategoria(novaCat) {
+    if (!botaoAtivo) return;
+    const btn = botaoAtivo;
+    const url = btn.dataset.url;
+    const tr = btn.closest("tr");
+    fecharPopover();
+
+    const corpo = new URLSearchParams();
+    corpo.append("categoria", novaCat);
+
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-Requested-With": "fetch",
+      },
+      body: corpo.toString(),
+    });
+
+    if (!resp.ok) {
+      mostrarToast("Não foi possível atualizar a categoria.");
+      return;
+    }
+
+    const dados = await resp.json();
+    const catFinal = dados.categoria || novaCat;
+
+    btn.dataset.categoria = catFinal;
+    btn.querySelector(".cat-pill-texto").textContent = catFinal;
+    if (tr) {
+      tr.dataset.categoria = catFinal;
+      if (tr.dataset.origem === "cartao") {
+        const idNum = Number(tr.dataset.id);
+        itensCartaoMes.forEach((item) => {
+          if (item.id === idNum) item.categoria = catFinal;
+        });
+        sincronizarOpcoesFiltroCartao();
+        atualizarGraficoCartao();
+      }
+    }
+    sincronizarFiltroTabela();
+    mostrarToast(`Categoria alterada para "${catFinal}"`);
+  }
+
+  if (tabelaMov) {
+    tabelaMov.addEventListener("click", (e) => {
+      const btn = e.target.closest(".cat-pill-btn");
+      if (!btn) return;
+      e.stopPropagation();
+      if (botaoAtivo === btn && popover.classList.contains("aberto")) {
+        fecharPopover();
+      } else {
+        abrirPopover(btn);
+      }
+    });
+  }
+
+  catBusca.addEventListener("input", renderizarGradeCategorias);
+  catBusca.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const digitado = (catBusca.value || "").trim();
+      if (digitado) aplicarCategoria(digitado);
+    } else if (e.key === "Escape") {
+      fecharPopover();
+    }
+  });
+  catFechar.addEventListener("click", fecharPopover);
+  document.addEventListener("click", (e) => {
+    if (popover.classList.contains("aberto") && !popover.contains(e.target) && !e.target.closest(".cat-pill-btn")) {
+      fecharPopover();
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") fecharPopover();
+  });
+</script>
+{% endblock %}

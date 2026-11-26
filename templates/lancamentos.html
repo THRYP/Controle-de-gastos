@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<div class="topo-pagina">
+  <h1>Lançamentos</h1>
+  <div class="botoes">
+    <a href="{{ url_for('importar_extrato') }}" class="botao botao-secundario">Importar extrato</a>
+    <a href="{{ url_for('novo') }}" class="botao">+ Novo lançamento</a>
+  </div>
+</div>
+
+<form method="get" class="filtros">
+  <label>Mês
+    <input type="month" name="mes" value="{{ mes }}" onchange="this.form.submit()">
+  </label>
+</form>
+
+<section class="resumo">
+  <div class="card entrada"><span>Entradas</span><strong>{{ entradas | brl }}</strong></div>
+  <div class="card saida">
+    <span>Saídas totais</span>
+    <strong>{{ saidas | brl }}</strong>
+    <small>Pagas: {{ saidas_pagas | brl }} · Pendentes: {{ saidas_pendentes | brl }}</small>
+  </div>
+  <div class="card {{ 'entrada' if saidas_pagas >= 0 else 'saida' }}">
+    <span>Saídas pagas</span>
+    <strong>{{ saidas_pagas | brl }}</strong>
+    <small>Lançamentos marcados como pagos</small>
+  </div>
+  <div class="card {{ 'saida' if saidas_pendentes > 0 else 'neutro' }}">
+    <span>Pendentes</span>
+    <strong>{{ saidas_pendentes | brl }}</strong>
+    <small>Aguardando pagamento</small>
+  </div>
+  <div class="card {{ 'entrada' if saldo >= 0 else 'saida' }}"><span>Saldo</span><strong>{{ saldo | brl }}</strong></div>
+</section>
+
+{% if lancamentos %}
+<div class="tabela-scroll">
+  <table id="tabela-lancamentos">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Categoria</th>
+        <th>Descrição</th>
+        <th>Banco</th>
+        <th>Valor</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in lancamentos %}
+      <tr class="{{ 'linha-paga' if l.pago and l.tipo == 'saida' else '' }}" data-id="{{ l.id }}" data-pago="{{ '1' if l.pago else '0' }}">
+        <td>{{ l.data | data_br }}</td>
+        <td><span class="badge badge-categoria">{{ l.categoria }}</span></td>
+        <td>{{ l.descricao or '' }}</td>
+        <td>
+          {% if l.banco %}
+            <span class="badge badge-categoria" style="font-size:.72rem;">{{ l.banco }}</span>
+          {% else %}
+            <span style="opacity:.4;">—</span>
+          {% endif %}
+        </td>
+        <td class="{{ l.tipo }}{{ '-tachado' if l.pago and l.tipo == 'saida' else '' }}">{{ '-' if l.tipo == 'saida' else '+' }}{{ l.valor | brl }}</td>
+        <td>
+          {% if l.tipo == 'saida' %}
+            {% if l.pago %}
+              <span class="badge badge-paga">Pago ✓</span>
+            {% else %}
+              <span class="badge badge-aberta">Pendente</span>
+            {% endif %}
+          {% else %}
+            <span class="badge badge-paga">Recebido</span>
+          {% endif %}
+        </td>
+        <td class="acoes">
+          {% if l.tipo == 'saida' %}
+            <button type="button"
+                    class="btn-pagar-lanc link-acao"
+                    data-id="{{ l.id }}"
+                    data-pago="{{ '1' if l.pago else '0' }}"
+                    data-url="{{ url_for('lancamento_pagar', id=l.id) }}">
+              {{ 'Desfazer' if l.pago else 'Pagar' }}
+            </button>
+          {% endif %}
+          <a href="{{ url_for('editar', id=l.id) }}" class="link-acao">Editar</a>
+          <form method="post" action="{{ url_for('excluir', id=l.id) }}"
+                onsubmit="return confirm('Excluir este lançamento?')">
+            <button type="submit" class="link-perigo">Excluir</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="vazio">Nenhum lançamento neste mês.</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll(".btn-pagar-lanc").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const url = btn.dataset.url;
+      const tr = btn.closest("tr");
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "X-Requested-With": "fetch" },
+      });
+      if (!resp.ok) return;
+      const dados = await resp.json();
+      const pago = dados.pago;
+      btn.dataset.pago = pago ? "1" : "0";
+      btn.textContent = pago ? "Desfazer" : "Pagar";
+      tr.dataset.pago = pago ? "1" : "0";
+      // Atualizar visual
+      const tdValor = tr.querySelector("td.saida, td.saida-tachado");
+      const badgeTd = tr.querySelector(".badge-paga, .badge-aberta");
+      if (pago) {
+        tr.classList.add("linha-paga");
+        if (tdValor) tdValor.className = "saida-tachado";
+        if (badgeTd) { badgeTd.className = "badge badge-paga"; badgeTd.textContent = "Pago ✓"; }
+      } else {
+        tr.classList.remove("linha-paga");
+        if (tdValor) tdValor.className = "saida";
+        if (badgeTd) { badgeTd.className = "badge badge-aberta"; badgeTd.textContent = "Pendente"; }
+      }
+    });
+  });
+</script>
+{% endblock %}
