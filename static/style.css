@@ -1462,3 +1462,35 @@ main.main-auth {
     text-align: left;
   }
 }
+
+.aviso-academico {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 7px 14px;
+  font-size: 0.8rem;
+  text-align: center;
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.14), rgba(16, 185, 129, 0.14));
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+.aviso-academico-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+body.pagina-auth .aviso-academico {
+  background: rgba(11, 17, 32, 0.78);
+  color: #e2e8f0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+

@@ -1,8 +1,11 @@
-# Controle de Gastos — Planejamento Financeiro Pessoal
+# Controle de Gastos — Planejamento Financeiro Pessoal *(Versão de Teste)*
+
+> **Aviso Acadêmico:** Este projeto é um **trabalho universitário em versão de teste/demonstração**, desenvolvido para o componente curricular **Projeto de Extensão I — Ciência da Computação**. O código é aberto sob a licença MIT para avaliação, testes, forks e melhorias pela comunidade.
 
 Aplicação web desenvolvida em **Python + Flask + SQLite** para controle financeiro pessoal e educação financeira comunitária, integrando gestão de lançamentos, faturas de cartão de crédito, metas financeiras, leitura automática de extratos bancários, login com Google (Gmail) e painel administrativo com isolamento total de dados por usuário.
 
-Projeto desenvolvido no âmbito do componente curricular **Projeto de Extensão I — Ciência da Computação (Programa de Contexto à Comunidade)**.
+- **Autor:** Ricardo Alves Peres Junior
+- **Licença:** [MIT](LICENSE) — livre para avaliação e modificação por qualquer pessoa.
 
 ---
 

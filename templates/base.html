@@ -14,6 +14,10 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="{% block body_class %}{% endblock %}">
+  <div class="aviso-academico" role="note">
+    <span class="aviso-academico-tag">VERSÃO DE TESTE</span>
+    <span>Projeto acadêmico de Extensão Universitária — Ciência da Computação. Ambiente de demonstração e avaliação.</span>
+  </div>
   {% set ep = request.endpoint or '' %}
   <header>
     <a href="{{ url_for('admin_painel') if usuario_atual and usuario_atual.role == 'admin' else (url_for('resumo') if usuario_atual else url_for('login')) }}" class="logo">

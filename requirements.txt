@@ -1,2 +1,3 @@
 flask
 pypdf
+gunicorn; sys_platform != 'win32'

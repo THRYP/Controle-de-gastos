@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, session, url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from extrato_parser import inferir_banco, inferir_categoria, ler_extrato
@@ -54,6 +55,7 @@ def _ler_int_env(nome, padrao):
 _carregar_env()
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 app.config["MAX_CONTENT_LENGTH"] = _ler_int_env("MAX_CONTENT_LENGTH_MB", 10) * 1024 * 1024
 
